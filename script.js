@@ -1,12 +1,13 @@
-let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]');
-let currentViewItems = [...bucketItems]; // ← 表示中のリストを保持
+let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]'); 
+let currentViewItems = [...bucketItems];
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbwYn1u8n8afvaV_XoXWBZxorQXGDenTYc8egsScdIB1Ho9UD0UkO15w1B3jk2bYEia_dg/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxOGQAfpHAeL0slMJkk77-47mpJtT36UF_Ceg7braI1xiFnniEXt4O2czcACusCabfLVQ/exec';
+
 window.addEventListener('DOMContentLoaded', () => {
   showLoading('クラウドから読み込み中...');
   fetchFromCloud(data => {
     bucketItems = data;
-    saveToLocal(); // ← ローカルにも保存
+    saveToLocal();
     renderItems();
     updateProgress();
     hideLoading();
@@ -17,49 +18,48 @@ function saveToLocal() {
   localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
 }
 
-function sendToCloud(item, action = "add") {
-  return fetch(`${SHEET_API_URL}?action=${action}`, {
-    method: 'POST',
+// --- Apps Script 側 doPost / doPut / doDelete 対応 ---
+function sendToCloud(item, method = "POST") {
+  return fetch(SHEET_API_URL, {
+    method: method,
     body: JSON.stringify(item),
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    mode: 'no-cors' // ← 追加
+    headers: { 'Content-Type': 'application/json' },
+    mode: 'cors'  // ← CORS 対応
   })
-  .then(res => {
-    console.log('Cloud request sent (no-cors, response unavailable)');
-  })
+  .then(res => res.json())
   .catch(err => console.error('Cloud error:', err));
 }
 
-
-
 function syncToCloud(item) {
-  return sendToCloud(item, "add"); // 新規追加
+  return sendToCloud(item, "POST");
 }
 
 function updateCloud(item) {
-  return sendToCloud(item, "update"); // 更新
+  return sendToCloud(item, "PUT");
 }
 
-
 function deleteFromCloud(id) {
-  fetch(`${SHEET_API_URL}?action=delete&id=${id}`);
+  return fetch(`${SHEET_API_URL}?id=${id}`, { 
+    method: 'DELETE',
+    mode: 'cors'
+  })
+  .then(res => res.json())
+  .catch(err => console.error(err));
 }
 
 function fetchFromCloud(callback) {
-  fetch(SHEET_API_URL)
+  fetch(SHEET_API_URL, { mode: 'cors' })
     .then(res => res.json())
-    .then(data => callback(data));
+    .then(data => callback(data))
+    .catch(err => console.error(err));
 }
 
-
+// --- CRUD 操作 ---
 function addItem(item) {
   item.updatedAt = new Date().toISOString();
   bucketItems.push(item);
   saveToLocal();
-  syncToCloud(item);
-  renderItems();
+  syncToCloud(item).then(() => renderItems(currentViewItems));
   updateProgress();
 }
 
@@ -69,21 +69,16 @@ function editItem(id, field, value) {
   item[field] = value.trim();
   item.updatedAt = new Date().toISOString();
   saveToLocal();
-  updateCloud(item);
-  renderItems(currentViewItems); // ← 現在の表示を維持
+  updateCloud(item).then(() => renderItems(currentViewItems));
 }
 
 async function deleteItem(id) {
   if (!confirm('この項目を削除しますか？')) return;
-
   try {
-    const res = await fetch(`${SHEET_API_URL}?action=delete&id=${id}`);
-    if (!res.ok) throw new Error('クラウド削除失敗');
-
-    // ローカルから削除
+    await deleteFromCloud(id);
     bucketItems = bucketItems.filter(i => i.id !== id);
     saveToLocal();
-    renderItems(currentViewItems); // ← 現在の表示を維持
+    renderItems(currentViewItems);
     updateProgress();
   } catch (err) {
     alert('削除に失敗しました: ' + err.message);
@@ -97,10 +92,10 @@ function toggleDone(id, checked) {
     item.completedAt = checked ? new Date().toISOString() : null;
     item.updatedAt = new Date().toISOString();
     saveToLocal();
-    updateCloud(item); // ← クラウドにも反映
+    updateCloud(item);
   }
   updateProgress();
-  renderItems(currentViewItems); // ← 現在の表示を維持
+  renderItems(currentViewItems);
 }
 
 function updateProgress() {
