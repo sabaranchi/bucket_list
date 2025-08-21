@@ -1,7 +1,7 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]');
 let currentViewItems = [...bucketItems]; // ← 表示中のリストを保持
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzwJZCBhW--LPM2L6M-u8oQWFC5W-hu9Y1UjnOzEqrZHVN0yw9zmjohg-jANaTjxP-D8A/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxQPEnMyoJmHEf0jIUE6BcOPaSu_fxjo86Gt9zmceqPDRLzeoFoMUV0gD15Shy2gOx40A/exec';
 window.addEventListener('DOMContentLoaded', () => {
   showLoading('クラウドから読み込み中...');
   fetchFromCloud(data => {
@@ -18,17 +18,20 @@ function saveToLocal() {
 }
 
 function sendToCloud(item, action = "add") {
+  const formData = new URLSearchParams();
+  for (const key in item) {
+    formData.append(key, item[key]);
+  }
+
   return fetch(`${SHEET_API_URL}?action=${action}`, {
     method: 'POST',
-    body: JSON.stringify(item),
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    body: formData // ← headers は付けない
   })
   .then(res => res.text())
   .then(text => console.log('Cloud response:', text))
   .catch(err => console.error('Cloud error:', err));
 }
+
 
 function syncToCloud(item) {
   return sendToCloud(item, "add"); // 新規追加
