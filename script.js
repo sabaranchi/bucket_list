@@ -1,7 +1,7 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]'); 
 let currentViewItems = [...bucketItems];
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbyW5yWGwCW9YhujYtyS7dEzZwS3-FH6-zlZI_G18WL6jlaPIxiuY8z_ChKcgaLeacDjAQ/exec'; // 最新 URL に置き換え
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzZ4OAe_zMDT8pP1NFwq6osUj_9gDq2zH3HUYrA4VYIehDo2ZwEKbs60OGDz9ZQZmDR2A/exec'; // 最新 URL に置き換え
 
 function sendToCloud(item, method = "POST") {
   return fetch(SHEET_API_URL, {
@@ -50,35 +50,32 @@ function updateCloud(item) {
   return sendToCloud(item, "PUT");
 }
 
-// --- CRUD 操作 ---
+// 例：追加
 function addItem(item) {
   item.updatedAt = new Date().toISOString();
   bucketItems.push(item);
-  saveToLocal();
-  syncToCloud(item).then(() => renderItems(currentViewItems));
-  updateProgress();
+  localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
+  sendToCloud(item, 'POST'); // 確実に追加
+  renderItems(bucketItems);
 }
 
+// 例：削除
+function deleteItem(id) {
+  bucketItems = bucketItems.filter(i => i.id !== id);
+  localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
+  fetch(`${SHEET_API_URL}?id=${id}`, { method: 'DELETE', mode: 'no-cors' });
+  renderItems(bucketItems);
+}
+
+// 例：更新
 function editItem(id, field, value) {
   const item = bucketItems.find(i => i.id === id);
   if (!item) return;
   item[field] = value.trim();
   item.updatedAt = new Date().toISOString();
-  saveToLocal();
-  updateCloud(item).then(() => renderItems(currentViewItems));
-}
-
-async function deleteItem(id) {
-  if (!confirm('この項目を削除しますか？')) return;
-  try {
-    await deleteFromCloud(id);
-    bucketItems = bucketItems.filter(i => i.id !== id);
-    saveToLocal();
-    renderItems(currentViewItems);
-    updateProgress();
-  } catch (err) {
-    alert('削除に失敗しました: ' + err.message);
-  }
+  localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
+  sendToCloud(item, 'PUT'); // 更新
+  renderItems(bucketItems);
 }
 
 function toggleDone(id, checked) {
