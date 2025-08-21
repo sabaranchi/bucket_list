@@ -8,14 +8,14 @@ function sendToCloud(item, method = "POST") {
     method: method,
     body: JSON.stringify(item),
     headers: { 'Content-Type': 'application/json' },
-    mode: 'cors' // ← これで CORS に対応
+    mode: 'no-cors' // ← これで CORS に対応
   })
   .then(res => res.json())
   .catch(err => console.error('Cloud error:', err));
 }
 
 function fetchFromCloud(callback) {
-  fetch(SHEET_API_URL, { mode: 'cors' })
+  fetch(SHEET_API_URL, { mode: 'no-cors' })
     .then(res => res.json())
     .then(data => callback(data))
     .catch(err => console.error('Cloud fetch error:', err));
