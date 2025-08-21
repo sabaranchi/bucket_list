@@ -1,13 +1,15 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]');
 let currentViewItems = [...bucketItems]; // ← 表示中のリストを保持
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby7HOUwmRpm8FU-k4CFzJ8Yvu1xVDidL0rQtUTW9-j6k4Uh02s5tkDwUMxaPtYCzn5a/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxdWqOfyNJKV2nrQBCOTwzV5Gyh8AH9J2Eckfh7PJbh6BIHh87tOM6vwDnvqJQ3OBv5Eg/exec';
 window.addEventListener('DOMContentLoaded', () => {
+  showLoading('クラウドから読み込み中...');
   fetchFromCloud(data => {
     bucketItems = data;
     saveToLocal(); // ← ローカルにも保存
     renderItems();
     updateProgress();
+    hideLoading();
   });
 });
 
@@ -18,6 +20,7 @@ function saveToLocal() {
 function syncToCloud(item) {
   fetch(SHEET_API_URL, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item)
   });
 }
@@ -25,6 +28,7 @@ function syncToCloud(item) {
 function updateCloud(item) {
   fetch(SHEET_API_URL, {
     method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item)
   });
 }
@@ -43,6 +47,7 @@ function fetchFromCloud(callback) {
 
 
 function addItem(item) {
+  item.updatedAt = new Date().toISOString();
   bucketItems.push(item);
   saveToLocal();
   syncToCloud(item);
@@ -60,6 +65,7 @@ function editItem(index, field, value) {
 
 function deleteItem(index) {
   if (!confirm('この項目を削除しますか？')) return;
+  const id = bucketItems[index].id; // ← これが必要！
   bucketItems.splice(index, 1);
   saveToLocal();
   deleteFromCloud(id);
