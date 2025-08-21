@@ -25,8 +25,12 @@ function syncToCloud(item) {
 
   fetch(SHEET_API_URL, {
     method: 'POST',
-    body: formData // ← JSONではなくURLエンコード形式
-  });
+    body: formData
+  })
+  .then(res => res.text())
+  .then(text => console.log('syncToCloud response:', text))
+  .catch(err => console.error('syncToCloud error:', err));
+
 }
 
 function updateCloud(item) {
@@ -36,9 +40,13 @@ function updateCloud(item) {
   }
 
   fetch(SHEET_API_URL, {
-    method: 'POST', // ← PUTはプリフライトが発生するのでPOSTに統一
+    method: 'POST',
     body: formData
-  });
+  })
+  .then(res => res.text())
+  .then(text => console.log('syncToCloud response:', text))
+  .catch(err => console.error('syncToCloud error:', err));
+
 }
 
 function deleteFromCloud(id) {
