@@ -17,37 +17,27 @@ function saveToLocal() {
   localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
 }
 
-function syncToCloud(item) {
-  const formData = new URLSearchParams();
-  for (const key in item) {
-    formData.append(key, item[key]);
-  }
-
-  fetch(SHEET_API_URL, {
+function sendToCloud(item, action = "add") {
+  return fetch(`${SHEET_API_URL}?action=${action}`, {
     method: 'POST',
-    body: formData
+    body: JSON.stringify(item),
+    headers: {
+      'Content-Type': 'application/json'
+    }
   })
   .then(res => res.text())
-  .then(text => console.log('syncToCloud response:', text))
-  .catch(err => console.error('syncToCloud error:', err));
+  .then(text => console.log('Cloud response:', text))
+  .catch(err => console.error('Cloud error:', err));
+}
 
+function syncToCloud(item) {
+  return sendToCloud(item, "add"); // 新規追加
 }
 
 function updateCloud(item) {
-  const formData = new URLSearchParams();
-  for (const key in item) {
-    formData.append(key, item[key]);
-  }
-
-  fetch(SHEET_API_URL, {
-    method: 'POST',
-    body: formData
-  })
-  .then(res => res.text())
-  .then(text => console.log('syncToCloud response:', text))
-  .catch(err => console.error('syncToCloud error:', err));
-
+  return sendToCloud(item, "update"); // 更新
 }
+
 
 function deleteFromCloud(id) {
   fetch(`${SHEET_API_URL}?action=delete&id=${id}`);
@@ -69,34 +59,44 @@ function addItem(item) {
   updateProgress();
 }
 
-function editItem(index, field, value) {
-  bucketItems[index][field] = value.trim();
-  bucketItems[index].updatedAt = new Date().toISOString(); // ← 更新日時
+function editItem(id, field, value) {
+  const item = bucketItems.find(i => i.id === id);
+  if (!item) return;
+  item[field] = value.trim();
+  item.updatedAt = new Date().toISOString();
   saveToLocal();
-  updateCloud(bucketItems[index]);
-  renderItems();
+  updateCloud(item);
+  renderItems(currentViewItems); // ← 現在の表示を維持
 }
 
-function deleteItem(index) {
+async function deleteItem(id) {
   if (!confirm('この項目を削除しますか？')) return;
-  const id = bucketItems[index].id; // ← これが必要！
-  bucketItems.splice(index, 1);
-  saveToLocal();
-  deleteFromCloud(id);
-  renderItems();
-  updateProgress();
+
+  try {
+    const res = await fetch(`${SHEET_API_URL}?action=delete&id=${id}`);
+    if (!res.ok) throw new Error('クラウド削除失敗');
+
+    // ローカルから削除
+    bucketItems = bucketItems.filter(i => i.id !== id);
+    saveToLocal();
+    renderItems(currentViewItems); // ← 現在の表示を維持
+    updateProgress();
+  } catch (err) {
+    alert('削除に失敗しました: ' + err.message);
+  }
 }
 
 function toggleDone(id, checked) {
   const item = bucketItems.find(i => i.id === id);
   if (item) {
     item.done = checked;
-    item.completedAt = checked ? new Date().toISOString() : null; // ← 日付を記録 or 削除
-    item.updatedAt = new Date().toISOString(); // ← 更新日時
+    item.completedAt = checked ? new Date().toISOString() : null;
+    item.updatedAt = new Date().toISOString();
+    saveToLocal();
+    updateCloud(item); // ← クラウドにも反映
   }
-  saveToLocal();
   updateProgress();
-  renderItems(currentViewItems); // ← 表示更新
+  renderItems(currentViewItems); // ← 現在の表示を維持
 }
 
 function updateProgress() {
@@ -148,22 +148,21 @@ function sort_newest() {
 }
 
 function renderItems(items = bucketItems) {
-  currentViewItems = [...items]; // ← 表示中のリストを保存
-
+  currentViewItems = [...items]; // ← 表示中リストを保存
   const container = document.getElementById('bucket-container');
   container.innerHTML = '';
 
-  items.forEach((item, index) => {
+  items.forEach(item => {
     const card = document.createElement('div');
     card.className = 'bucket-card';
     card.innerHTML = `
       <label>
         <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDone('${item.id}', this.checked)">
-        <span contenteditable="true" onblur="editItem(${index}, 'title', this.textContent)" class="${item.done ? 'done' : ''}">${item.title}</span>
+        <span contenteditable="true" onblur="editItem('${item.id}', 'title', this.textContent)" class="${item.done ? 'done' : ''}">${item.title}</span>
       </label>
-      <p><small>メモ: <span contenteditable="true" onblur="editItem(${index}, 'category', this.textContent)">${item.category}</span></small></p>
+      <p><small>メモ: <span contenteditable="true" onblur="editItem('${item.id}', 'category', this.textContent)">${item.category}</span></small></p>
       ${item.completedAt ? `<p><small>達成日: ${new Date(item.completedAt).toLocaleDateString()}</small></p>` : ''}
-      <button onclick="deleteItem(${index})">削除</button>
+      <button onclick="deleteItem('${item.id}')">削除</button>
     `;
     container.appendChild(card);
   });
