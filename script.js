@@ -1,25 +1,60 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]');
 let currentViewItems = [...bucketItems]; // ← 表示中のリストを保持
 
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby7HOUwmRpm8FU-k4CFzJ8Yvu1xVDidL0rQtUTW9-j6k4Uh02s5tkDwUMxaPtYCzn5a/exec';
 window.addEventListener('DOMContentLoaded', () => {
-  renderItems();
-  updateProgress();
+  fetchFromCloud(data => {
+    bucketItems = data;
+    saveToLocal(); // ← ローカルにも保存
+    renderItems();
+    updateProgress();
+  });
 });
 
 function saveToLocal() {
   localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
 }
 
+function syncToCloud(item) {
+  fetch(SHEET_API_URL, {
+    method: 'POST',
+    body: JSON.stringify(item)
+  });
+}
+
+function updateCloud(item) {
+  fetch(SHEET_API_URL, {
+    method: 'PUT',
+    body: JSON.stringify(item)
+  });
+}
+
+function deleteFromCloud(id) {
+  fetch(`${SHEET_API_URL}?id=${id}`, {
+    method: 'DELETE'
+  });
+}
+
+function fetchFromCloud(callback) {
+  fetch(SHEET_API_URL)
+    .then(res => res.json())
+    .then(data => callback(data));
+}
+
+
 function addItem(item) {
   bucketItems.push(item);
   saveToLocal();
+  syncToCloud(item);
   renderItems();
   updateProgress();
 }
 
 function editItem(index, field, value) {
   bucketItems[index][field] = value.trim();
+  bucketItems[index].updatedAt = new Date().toISOString(); // ← 更新日時
   saveToLocal();
+  updateCloud(bucketItems[index]);
   renderItems();
 }
 
@@ -27,6 +62,7 @@ function deleteItem(index) {
   if (!confirm('この項目を削除しますか？')) return;
   bucketItems.splice(index, 1);
   saveToLocal();
+  deleteFromCloud(id);
   renderItems();
   updateProgress();
 }
@@ -36,6 +72,7 @@ function toggleDone(id, checked) {
   if (item) {
     item.done = checked;
     item.completedAt = checked ? new Date().toISOString() : null; // ← 日付を記録 or 削除
+    item.updatedAt = new Date().toISOString(); // ← 更新日時
   }
   saveToLocal();
   updateProgress();
@@ -47,8 +84,10 @@ function updateProgress() {
   const doneCount = bucketItems.filter(i => i.done).length;
   const percent = total === 0 ? 0 : Math.round((doneCount / total) * 100);
 
-  document.getElementById('progress-text').textContent = `${percent}%`;
-  document.getElementById('progress-fill').style.width = `${percent}%`;
+  document.getElementById('progress-text').textContent = `${doneCount} / ${total}（${percent}%)`;
+  const fill = document.getElementById('progress-fill');
+  fill.style.width = `${percent}%`;
+  fill.style.backgroundColor = percent < 40 ? 'red' : percent < 80 ? 'orange' : 'green';
 }
 
 function applyFilter(type) {
@@ -136,4 +175,98 @@ function sortItems(type) {
 
 function showSection(name) {
   document.getElementById('add-section').style.display = name === 'add' ? 'block' : 'none';
+}
+
+function exportBackup() {
+  const dataStr = JSON.stringify(bucketItems, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bucket_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  showLoading('インポート中...');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('形式が不正です');
+
+      bucketItems = imported;
+      saveToLocal();
+      renderItems();
+      updateProgress();
+
+      imported.forEach(item => syncToCloud(item)); // クラウドに送信
+      autoSync(); // ← インポート後にクラウドと整合
+
+      alert('インポートとクラウド同期が完了しました！');
+    } catch (err) {
+      alert('インポートに失敗しました：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showLoading(message = '読み込み中...') {
+  const loading = document.getElementById('loading');
+  loading.textContent = message;
+  loading.style.display = 'block';
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function autoSync() {
+  showLoading('クラウドと差分同期中...');
+
+  fetchFromCloud(cloudData => {
+    const cloudMap = Object.fromEntries(cloudData.map(item => [item.id, item]));
+    const localMap = Object.fromEntries(bucketItems.map(item => [item.id, item]));
+
+    const merged = [];
+
+    const allIds = new Set([...Object.keys(cloudMap), ...Object.keys(localMap)]);
+    allIds.forEach(id => {
+      const local = localMap[id];
+      const cloud = cloudMap[id];
+
+      if (!local) {
+        // ローカルにない → クラウドから追加
+        merged.push(cloud);
+      } else if (!cloud) {
+        // クラウドにない → ローカルから追加
+        merged.push(local);
+        syncToCloud(local);
+      } else {
+        // 両方ある → 更新日時で比較
+        const localDate = new Date(local.updatedAt || 0);
+        const cloudDate = new Date(cloud.updatedAt || 0);
+        if (localDate > cloudDate) {
+          merged.push(local);
+          updateCloud(local);
+        } else {
+          merged.push(cloud);
+        }
+      }
+    });
+
+    bucketItems = merged;
+    saveToLocal();
+    renderItems();
+    updateProgress();
+    hideLoading();
+    console.log('差分同期が完了しました');
+  });
 }

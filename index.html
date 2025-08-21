@@ -27,6 +27,7 @@
 
   <nav>
     <button onclick="showSection('add')">やりたい事を追加</button>
+    <button onclick="autoSync()">クラウドと同期</button>
   </nav>
 
   <section id="add-section" style="display:none;">
@@ -39,6 +40,15 @@
   </section>
 
   <div id="bucket-container"></div>
+
+  <hr>
+  <div id="backup-controls">
+    <button onclick="exportBackup()">バックアップをダウンロード</button>
+    <label>
+        復元するファイルを選択:
+        <input type="file" accept=".json" onchange="importBackup(event)" />
+    </label>
+  </div>
   
 
   <script src="script.js"></script>
