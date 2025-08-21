@@ -18,19 +18,20 @@ function saveToLocal() {
 }
 
 function sendToCloud(item, action = "add") {
-  const formData = new URLSearchParams();
-  for (const key in item) {
-    formData.append(key, item[key]);
-  }
-
   return fetch(`${SHEET_API_URL}?action=${action}`, {
     method: 'POST',
-    body: formData // ← headers は付けない
+    body: JSON.stringify(item),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    mode: 'no-cors' // ← 追加
   })
-  .then(res => res.text())
-  .then(text => console.log('Cloud response:', text))
+  .then(res => {
+    console.log('Cloud request sent (no-cors, response unavailable)');
+  })
   .catch(err => console.error('Cloud error:', err));
 }
+
 
 
 function syncToCloud(item) {
