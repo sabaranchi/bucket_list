@@ -16,7 +16,7 @@ function sendToCloud(item, action='add') {
 // ---------- Cloud Fetch ----------
 function fetchFromCloud() {
   showLoading('クラウドから読み込み中...');
-  fetch(SHEET_API_URL, { method: 'GET', mode: 'no-cors' })
+  fetch(SHEET_API_URL, { method: 'GET', mode: 'cors' })
     .then(res => res.json())
     .then(data => {
       if (!Array.isArray(data)) throw new Error('クラウドデータ形式が不正です');
