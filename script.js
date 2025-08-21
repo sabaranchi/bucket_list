@@ -18,25 +18,31 @@ function saveToLocal() {
 }
 
 function syncToCloud(item) {
+  const formData = new URLSearchParams();
+  for (const key in item) {
+    formData.append(key, item[key]);
+  }
+
   fetch(SHEET_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item)
+    body: formData // ← JSONではなくURLエンコード形式
   });
 }
 
 function updateCloud(item) {
+  const formData = new URLSearchParams();
+  for (const key in item) {
+    formData.append(key, item[key]);
+  }
+
   fetch(SHEET_API_URL, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item)
+    method: 'POST', // ← PUTはプリフライトが発生するのでPOSTに統一
+    body: formData
   });
 }
 
 function deleteFromCloud(id) {
-  fetch(`${SHEET_API_URL}?id=${id}`, {
-    method: 'DELETE'
-  });
+  fetch(`${SHEET_API_URL}?action=delete&id=${id}`);
 }
 
 function fetchFromCloud(callback) {
