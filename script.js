@@ -1,7 +1,7 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]');
 let currentViewItems = [...bucketItems]; // ← 表示中のリストを保持
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxdWqOfyNJKV2nrQBCOTwzV5Gyh8AH9J2Eckfh7PJbh6BIHh87tOM6vwDnvqJQ3OBv5Eg/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbx_AN8APvBww5eymEhbl3Jq3h2n7M5gpnv0WoGw-2j1VyAu8Makal8hpsakvu9HYsH3ew/exec';
 window.addEventListener('DOMContentLoaded', () => {
   showLoading('クラウドから読み込み中...');
   fetchFromCloud(data => {
