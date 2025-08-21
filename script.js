@@ -13,6 +13,25 @@ function sendToCloud(item, action='add') {
   }).catch(err => console.error('Cloud error:', err));
 }
 
+// ---------- Cloud Fetch ----------
+function fetchFromCloud() {
+  showLoading('クラウドから読み込み中...');
+  fetch(SHEET_API_URL, { method: 'GET', mode: 'no-cors' })
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data)) throw new Error('クラウドデータ形式が不正です');
+      bucketItems = data;
+      saveToLocal();
+      renderItems();
+      updateProgress();
+      hideLoading();
+    })
+    .catch(err => {
+      console.error('Cloud fetch error:', err);
+      hideLoading();
+    });
+}
+
 // ---------- Local Storage ----------
 function saveToLocal() {
   localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
@@ -187,6 +206,7 @@ document.getElementById('add-form').addEventListener('submit', function(e) {
 
 // ---------- Initialization ----------
 window.addEventListener('DOMContentLoaded', () => {
+  fetchFromCloud();  // 追加：クラウドデータを取得して初期表示
   renderItems();
   updateProgress();
 });
