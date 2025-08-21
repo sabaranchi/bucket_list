@@ -1,7 +1,31 @@
 let bucketItems = JSON.parse(localStorage.getItem('bucketItems') || '[]'); 
 let currentViewItems = [...bucketItems];
 
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxOGQAfpHAeL0slMJkk77-47mpJtT36UF_Ceg7braI1xiFnniEXt4O2czcACusCabfLVQ/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbyW5yWGwCW9YhujYtyS7dEzZwS3-FH6-zlZI_G18WL6jlaPIxiuY8z_ChKcgaLeacDjAQ/exec'; // 最新 URL に置き換え
+
+function sendToCloud(item, method = "POST") {
+  return fetch(SHEET_API_URL, {
+    method: method,
+    body: JSON.stringify(item),
+    headers: { 'Content-Type': 'application/json' },
+    mode: 'cors' // ← これで CORS に対応
+  })
+  .then(res => res.json())
+  .catch(err => console.error('Cloud error:', err));
+}
+
+function fetchFromCloud(callback) {
+  fetch(SHEET_API_URL, { mode: 'cors' })
+    .then(res => res.json())
+    .then(data => callback(data))
+    .catch(err => console.error('Cloud fetch error:', err));
+}
+
+function deleteFromCloud(id) {
+  return fetch(`${SHEET_API_URL}?id=${id}`, { method: 'DELETE', mode: 'cors' })
+    .then(res => res.json())
+    .catch(err => console.error('Cloud delete error:', err));
+}
 
 window.addEventListener('DOMContentLoaded', () => {
   showLoading('クラウドから読み込み中...');
@@ -18,40 +42,12 @@ function saveToLocal() {
   localStorage.setItem('bucketItems', JSON.stringify(bucketItems));
 }
 
-// --- Apps Script 側 doPost / doPut / doDelete 対応 ---
-function sendToCloud(item, method = "POST") {
-  return fetch(SHEET_API_URL, {
-    method: method,
-    body: JSON.stringify(item),
-    headers: { 'Content-Type': 'application/json' },
-    mode: 'cors'  // ← CORS 対応
-  })
-  .then(res => res.json())
-  .catch(err => console.error('Cloud error:', err));
-}
-
 function syncToCloud(item) {
   return sendToCloud(item, "POST");
 }
 
 function updateCloud(item) {
   return sendToCloud(item, "PUT");
-}
-
-function deleteFromCloud(id) {
-  return fetch(`${SHEET_API_URL}?id=${id}`, { 
-    method: 'DELETE',
-    mode: 'cors'
-  })
-  .then(res => res.json())
-  .catch(err => console.error(err));
-}
-
-function fetchFromCloud(callback) {
-  fetch(SHEET_API_URL, { mode: 'cors' })
-    .then(res => res.json())
-    .then(data => callback(data))
-    .catch(err => console.error(err));
 }
 
 // --- CRUD 操作 ---
