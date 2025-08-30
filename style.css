@@ -69,3 +69,8 @@ nav {
 section {
   margin-top: 1rem;
 }
+
+.bucket-card.pinned {
+  background-color: #fffbe6; /* やさしい黄色系 */
+  border-left: 4px solid #f5c518; /* ピンの印象を強調 */
+}

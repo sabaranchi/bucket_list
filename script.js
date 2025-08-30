@@ -90,12 +90,18 @@ function updateProgress() {
 // ---------- Rendering ----------
 function renderItems(items = bucketItems) {
   currentViewItems = [...items];
+
+  // ピン付きアイテムを上に並べる
+  const sorted = [...items].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
   const container = document.getElementById('bucket-container');
   container.innerHTML = '';
 
-  items.forEach(item => {
+  sorted.forEach(item => {
     const card = document.createElement('div');
     card.className = 'bucket-card';
+    if (item.pinned) card.classList.add('pinned');
+    const pinIcon = item.pinned ? '📌' : '📍';
     card.innerHTML = `
       <label>
         <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDone('${item.id}', this.checked)">
@@ -104,6 +110,7 @@ function renderItems(items = bucketItems) {
       <p><small>メモ: <span contenteditable="true" onblur="editItem('${item.id}', 'category', this.textContent)">${item.category}</span></small></p>
       ${item.completedAt ? `<p><small>達成日: ${new Date(item.completedAt).toLocaleDateString()}</small></p>` : ''}
       <button onclick="deleteItem('${item.id}')">削除</button>
+      <button onclick="togglePin('${item.id}')">${pinIcon} ピン</button>
     `;
     container.appendChild(card);
   });
@@ -131,6 +138,25 @@ function sort_oldest() {
 function sort_newest() {
   const sorted = [...currentViewItems].sort((a, b) => (new Date(b.completedAt || 0) - new Date(a.completedAt || 0)));
   renderItems(sorted);
+}
+
+function togglePin(id) {
+  const item = bucketItems.find(i => i.id === id);
+  if (!item) return;
+  item.pinned = !item.pinned;
+  item.updatedAt = new Date().toISOString();
+  saveToLocal();
+  sendToCloud(item, 'update');
+  renderItems(currentViewItems);
+}
+
+function applyFilter(type) {
+  let filtered = [];
+  if (type === 'learned') filtered = bucketItems.filter(i => i.done);
+  else if (type === 'unlearned') filtered = bucketItems.filter(i => !i.done);
+  else if (type === 'pinned') filtered = bucketItems.filter(i => i.pinned);
+  else filtered = bucketItems;
+  renderItems(filtered);
 }
 
 function sortItems(type) {
@@ -200,7 +226,7 @@ document.getElementById('add-form').addEventListener('submit', function(e) {
   const category = document.getElementById('new-category').value.trim();
   if (!title) return;
   const id = 'item-' + Date.now();
-  addItem({ id, title, category, done: false });
+  addItem({ id, title, category, done: false, pinned: false });
   this.reset();
 });
 
