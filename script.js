@@ -107,7 +107,7 @@ function renderItems(items = bucketItems) {
         <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDone('${item.id}', this.checked)">
         <span contenteditable="true" onblur="editItem('${item.id}', 'title', this.textContent)" class="${item.done ? 'done' : ''}">${item.title}</span>
       </label>
-      <p><small>メモ: <span contenteditable="true" onblur="editItem('${item.id}', 'category', this.textContent)">${item.category}</span></small></p>
+      <p><small>メモ: <span contenteditable="true" onblur="editItem('${item.id}', 'category', this.textContent)">${item.category || '\u200B'}</span></small></p>
       ${item.completedAt ? `<p><small>達成日: ${new Date(item.completedAt).toLocaleDateString()}</small></p>` : ''}
       <button onclick="deleteItem('${item.id}')">削除</button>
       <button onclick="togglePin('${item.id}')">${pinIcon} ピン</button>
