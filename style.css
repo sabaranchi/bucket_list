@@ -74,3 +74,8 @@ section {
   background-color: #fffbe6; /* やさしい黄色系 */
   border-left: 4px solid #f5c518; /* ピンの印象を強調 */
 }
+
+[contenteditable]{
+  min-height: 1em;
+  display: inline-block;
+}
